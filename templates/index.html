@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Real-Time Data Dashboard</title>
+    <!-- Load Chart.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Load Socket.IO -->
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Real-Time Data Dashboard</h1>
+    <!-- Four canvas elements for the four readings -->
+    <canvas id="chart1" width="400" height="200"></canvas>
+    <canvas id="chart2" width="400" height="200"></canvas>
+    <canvas id="chart3" width="400" height="200"></canvas>
+    <canvas id="chart4" width="400" height="200"></canvas>
+    <canvas id="chart5" width="400" height="200"></canvas>
+    <canvas id="chart6" width="400" height="200"></canvas>
+    <canvas id="chart7" width="400" height="200"></canvas>
+
+    <script>
+        // Connect to the Socket.IO server.
+        var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port);
+
+        // Listen for the connection event
+        socket.on('connect', function() {
+          console.log('Socket connected:', socket.connected); // should log true
+        });
+
+        // Optionally, listen for disconnect events
+        socket.on('disconnect', function() {
+          console.log('Socket disconnected');
+        });
+
+        // You can also check the connection status at any time:
+        if (socket.connected) {
+          console.log('Already connected!');
+        } else {
+          console.log('Not connected yet.');
+        }
+
+        // Set up four charts using Chart.js.
+        function createChart(canvasId, label, borderColor) {
+            var ctx = document.getElementById(canvasId).getContext('2d');
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: label,
+                        data: [],
+                        borderColor: borderColor,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        xAxes: [{
+                            type: 'time',
+                            time: { tooltipFormat: 'HH:mm:ss', displayFormats: { second: 'HH:mm:ss' } }
+                        }],
+                        yAxes: [{
+                            ticks: { beginAtZero: true }
+                        }]
+                    }
+                }
+            });
+        }
+
+        var chart1 = createChart('chart1', 'Elapsed-Time', 'red');
+        var chart2 = createChart('chart2', 'Velocity', 'blue');
+        var chart3 = createChart('chart3', 'Density', 'green');
+        var chart4 = createChart('chart4', 'Viscosity', 'orange');
+        var chart5 = createChart('chart5', 'Tds', 'orange');
+        var chart6 = createChart('chart6', 'Mass', 'orange');
+
+        console.log("Loaded")
+
+        socket.onAny((event, ...args) => {
+            console.log(`Received event: ${event}`, args);
+        });
+
+        // Listen for data updates from the server.
+        socket.on('update_data', function(msg) {
+            // msg.data is an array of rows from the database.
+            // Each row: [id, reading1, reading2, reading3, reading4, timestamp]
+            // We reverse the array to display the oldest first.
+            var rows = msg.data.reverse();
+            console.log(rows)
+            // Clear current chart data
+            if (chart1 && chart2 && chart3 && chart4 && chart5 && chart6) {
+              [chart1, chart2, chart3, chart4, chart5, chart6].forEach(function(chart) {
+                  if (chart && chart.data && chart.data.datasets && chart.data.datasets.length > 0) {
+                      chart.data.labels = [];
+                      chart.data.datasets[0].data = [];
+                  } else {
+                      console.error("Chart not fully initialized:", chart);
+                  }
+              });
+            }
+            
+            rows.forEach(function(row) {
+                var timestamp = row[7];
+                chart1.data.labels.push(timestamp);
+                chart1.data.datasets[0].data.push(row[1]);
+                
+                chart2.data.labels.push(timestamp);
+                chart2.data.datasets[0].data.push(row[2]);
+                
+                chart3.data.labels.push(timestamp);
+                chart3.data.datasets[0].data.push(row[3]);
+                
+                chart4.data.labels.push(timestamp);
+                chart4.data.datasets[0].data.push(row[4]);
+                
+                chart5.data.labels.push(timestamp);
+                chart5.data.datasets[0].data.push(row[5]);
+                
+                chart6.data.labels.push(timestamp);
+                chart6.data.datasets[0].data.push(row[6]);
+            });
+            
+            // Update all charts
+            chart1.update();
+            chart2.update();
+            chart3.update();
+            chart4.update();
+            chart5.update();
+            chart6.update();
+        });
+    </script>
+</body>
+</html>
